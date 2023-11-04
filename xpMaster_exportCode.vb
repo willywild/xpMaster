@@ -35,9 +35,9 @@ Public Sub xpExportAllVBAcode()
                     If .CodeModule.CountOfLines > 3 Then 'skips empty "Option Explicit" code modules
                         Debug.Print Switch( _
                             .Type = vbext_ct_StdModule, ".", _
-                            .Type = vbext_ct_MSForm, "Form", _
-                            .Type = vbext_ct_Document, "wb/ws", _
-                            .Type = vbext_ct_ClassModule, "class", _
+                            .Type = vbext_ct_MSForm, "frm", _
+                            .Type = vbext_ct_Document, "cls-wb/ws", _
+                            .Type = vbext_ct_ClassModule, "cls", _
                             .Type = vbext_ct_ActiveXDesigner, "ActiveX"), _
                             .CodeModule.CountOfLines, _
                             proj.Name & ":" & .Name
