@@ -21,7 +21,7 @@ Public Sub xpExportAllVBAcode()
     
 ''    folderName = Environ("APPDATA") & "\XpSearch\VBexports\"
     folderName = Environ("APPDATA") & "\Git\"
-    Debug.Print vbLf; "Type", "#lines", "Project:Module"
+    Debug.Print vbLf; "Type", "#lines", "Project_Module.ext"
     
     For Each proj In Application.VBE.VBProjects
         
