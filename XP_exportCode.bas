@@ -38,35 +38,34 @@ Public Sub xpExportAllVBAcode()
         Case Else
             '// s = "C:\Users\dano\AppData\Roaming\Microsoft\AddIns\XP.DLL"
             '// save as 'XP_Main.bas', 'XpSearch_Main.bas', etc.
-            s = proj.BuildFileName
-            n = InStrRev(s, "\")
-            s = Mid(s, n + 1, Len(s) - n - 4)   '// s = 'XP' ... chop off '.DLL' for every build file
-            s = Replace(s, ".", "_")
+            s = Replace(proj.BuildFileName, ".DLL", vbNullString)
+            s = Split(s, "\")(UBound(Split(s, "\")))
             If VBA.Len(VBA.Dir(fldr & s, vbDirectory)) = 0 Then VBA.MkDir fldr & s
             For Each comp In proj.VBComponents
                 With comp
                     
-                Select Case True
-                Case .CodeModule.CountOfLines < 4
-                    '// skip
-                Case .Type = vbext_ct_StdModule
-                    Debug.Print ".", .CodeModule.CountOfLines, s & "_" & .Name & ".bas"
-                    .Export fldr & "\" & s & "\" & s & "_" & .Name & ".bas"
-                Case .Type = vbext_ct_Document
-                    Debug.Print "wb/ws", .CodeModule.CountOfLines, s & "_" & .Name & ".vb"
-                    .Export fldr & "\" & s & "\" & s & "_" & .Name & ".vb"
-                Case .Type = vbext_ct_ClassModule
-                    Debug.Print "cls", .CodeModule.CountOfLines, s & "_" & .Name & ".cls"
-                    .Export fldr & "\" & s & "\" & s & "_" & .Name & ".cls"
-                Case .Type = vbext_ct_MSForm
-                    Debug.Print "frm", .CodeModule.CountOfLines, s & "_" & .Name & ".frm"
-                    .Export fldr & "\" & s & "\" & s & "_" & .Name & ".frm"
-                Case Else       '// .Type = vbext_ct_ActiveXDesigner
-                    Debug.Assert False
-                End Select
+                    Select Case True
+                    Case .CodeModule.CountOfLines < 4
+                        '// skip
+                    Case .Type = vbext_ct_StdModule
+                        Debug.Print ".", .CodeModule.CountOfLines, s & "_" & .Name & ".bas"
+                        .Export fldr & "\" & s & "\" & s & "_" & .Name & ".bas"
+                    Case .Type = vbext_ct_Document
+                        Debug.Print "wb/ws", .CodeModule.CountOfLines, s & "_" & .Name & ".vb"
+                        .Export fldr & "\" & s & "\" & s & "_" & .Name & ".vb"
+                    Case .Type = vbext_ct_ClassModule
+                        Debug.Print "cls", .CodeModule.CountOfLines, s & "_" & .Name & ".cls"
+                        .Export fldr & "\" & s & "\" & s & "_" & .Name & ".cls"
+                    Case .Type = vbext_ct_MSForm
+                        Debug.Print "frm", .CodeModule.CountOfLines, s & "_" & .Name & ".frm"
+                        .Export fldr & "\" & s & "\" & s & "_" & .Name & ".frm"
+                    Case Else       '// .Type = vbext_ct_ActiveXDesigner
+                        Debug.Assert False
+                    End Select
                     
                 End With
             Next comp
+            If VBA.Len(VBA.Dir(fldr & s & "\")) = 0 Then VBA.RmDir fldr & s   '// delete empty folders
         End Select
         
     Next proj
