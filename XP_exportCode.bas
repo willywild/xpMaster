@@ -36,7 +36,7 @@ Public Sub xpExportAllVBAcode()
         Case Not proj.Saved
             MsgBox proj.Name & " is not saved", vbCritical, "Unsaved Project - save and retry"
         Case Else
-            '// s = "C:\Users\dano\AppData\Roaming\Microsoft\AddIns\XP.DLL"
+            '// s = %AppData%\Microsoft\AddIns\XP.DLL
             '// save as 'XP_Main.bas', 'XpSearch_Main.bas', etc.
             s = Replace(proj.BuildFileName, ".DLL", vbNullString)
             s = Split(s, "\")(UBound(Split(s, "\")))
