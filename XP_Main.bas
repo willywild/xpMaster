@@ -83,10 +83,13 @@ End Sub
 
 Public Sub xpChartSavedAsPng()
     Dim s As String
+    Const EXT As String = "jpg"
+''    Const EXT As String = "png" '// 'gif'
+''    Const EXT As String = "gif" '// 'gif'
     
 ''For Each ch In ActiveWorkbook.Charts: ch.Export Filename:=ActiveWorkbook.Path & "\" & ch.Name & ".png": Next
-    s = ActiveWorkbook.Path & "\" & ActiveChart.Name & ".png"
-    ActiveChart.Export Filename:=s
+    s = ActiveWorkbook.Path & "\" & ActiveChart.Name & "." & EXT
+    ActiveChart.Export Filename:=s, FilterName:=EXT
     MsgBox s
 End Sub
 
