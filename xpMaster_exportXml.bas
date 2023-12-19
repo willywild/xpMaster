@@ -4,7 +4,7 @@ Option Explicit
 Public Sub ExportXMLsheets()   '// exports both forms of XML for all non blank sheets in ActiveWorkbook\
     Dim wb As Excel.Workbook
     Dim ai As Excel.AddIn
-    Dim cm As office.COMAddIn
+    Dim cm As Office.COMAddIn
     Dim sh As Excel.Worksheet
     Dim folderName As String
     

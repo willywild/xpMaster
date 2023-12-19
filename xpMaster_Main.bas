@@ -2,7 +2,7 @@ Attribute VB_Name = "Main"
 '// Event routines are in the Workbook object
 Option Explicit
 
-Public ctrlXpsearch As CommandBarControl
+Public ctrlXpsearch As Office.CommandBarControl
 
 Private Const TAGXP As String = "XP"         'name of this control Addin
 Private Const XPSEARCH As String = "XpSearch"           'name of operational Addin
