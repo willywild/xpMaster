@@ -46,7 +46,7 @@
 		<XmlCreator Id="8" Type="StdModule">
 			<CodeFile>XmlCreator.bas</CodeFile>
 			<CountOfDeclarationLines>1</CountOfDeclarationLines>
-			<CountOfLines>142</CountOfLines>
+			<CountOfLines>143</CountOfLines>
 		</XmlCreator>
 	</VBComponents>
 	<References>

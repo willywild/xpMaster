@@ -1,0 +1,12 @@
+# Auto detect text files and perform LF normalization
+* text=auto
+
+# VBA extensions - Preseve CRLF in working directory
+*.bas text eol=crlf working-tree-encoding=CP1252
+*.cls text eol=crlf working-tree-encoding=CP1252
+*.frm text eol=crlf working-tree-encoding=CP1252
+*.vb  text eol=crlf working-tree-encoding=CP1252
+*.xml text eol=crlf working-tree-encoding=CP1252
+
+# VBA extensions - Mark as binary
+*.frx binary

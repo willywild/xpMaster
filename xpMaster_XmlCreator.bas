@@ -98,6 +98,7 @@ Public Function PrettyPrintXML(s As String) As String
   PrettyPrintXML = Writer.output
 End Function
 
+'// https://stackoverflow.com/a/6406372/4363840
 Private Sub FormatDocToFile(ByVal doc As MSXML2.DOMDocument60, _
                             ByVal FileName As String)
     'Reformats the DOMDocument "Doc" into an ADODB.Stream
