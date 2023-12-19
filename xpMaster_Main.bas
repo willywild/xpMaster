@@ -89,7 +89,7 @@ Public Sub xpChartSavedAsPng()
     
 ''For Each ch In ActiveWorkbook.Charts: ch.Export Filename:=ActiveWorkbook.Path & "\" & ch.Name & ".png": Next
     s = ActiveWorkbook.Path & "\" & ActiveChart.Name & "." & EXT
-    ActiveChart.Export Filename:=s, FilterName:=EXT
+    ActiveChart.Export FileName:=s, FilterName:=EXT
     MsgBox s
 End Sub
 
