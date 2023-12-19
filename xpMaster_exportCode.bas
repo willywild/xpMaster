@@ -2,7 +2,7 @@ Attribute VB_Name = "exportCode"
 Option Explicit
 
 '// #INCLUDE: [Microsoft Visual Basic for Applications Extensibility]
-'// #INCLUDE: [JS class module]
+'// #INCLUDE: [MSXML2]
 
 Private m As thisModule
 Private Type thisModule
@@ -12,13 +12,11 @@ Private Type thisModule
 End Type
 
 Public Sub ExportAllVBAcode()
-''    Dim wb As Excel.Workbook
-    Dim userAddinsSelected As Boolean
-    Dim i As Long
-    
     '// Exports all code in open Workbooks and installed Addins
     '// including Worksheet XML and Workbook VBA code
     '// sheet XML files for data to rebuild sheets with formatting and formulas
+    Dim userAddinsSelected As Boolean
+    Dim i As Long
     
     '// target directory:  %Appdata%\Git\name
     m.gitfldr = Environ("APPDATA") & "\Git\"
@@ -28,18 +26,6 @@ Public Sub ExportAllVBAcode()
     
     '// 'Trust' VBE object model, then turn off when finished
     If Not isVBEPermissionsOn Then MsgBox "cannot export without VBE permissions, exit", vbInformation: Exit Sub
-
-
-    '// Note: VBProjects should be accessed using the Excel application and not VBE application
-    '//       ... VBE.VBProject cannot refer up to parent workbook or worksheet Excel.Workbook.VBProject can
-    
-    '   ai always has code -> always export
-    '   wb export if HasVBProject is True
-    '   - check wb and each ws classes for vb code
-    '   - export ws XML if any VBA code
-    '   - has Modules or Class Modules or UserForms
-    '   json object of properties, etc
-    
 
     Debug.Print "Workbooks:"
     For i = 1 To Excel.Workbooks.Count
@@ -53,28 +39,22 @@ Public Sub ExportAllVBAcode()
             Case Else
                 exportWorkbook Workbooks(i)
             End Select
-            
         End With
     Next i
 
     Debug.Print "Addins:"
-''    Dim ai As Excel.AddIn
-''    For Each ai In Excel.AddIns
     For i = 1 To Excel.AddIns.Count
         With AddIns(i)
             Select Case True
             Case Not .Installed: Debug.Print "  -off-", , , .Name
             Case Not Workbooks(.Name).Saved: MsgBox .Name & " is not-saved, skipped"
             Case Else
-    ''            Debug.Print , Workbooks(ai.name).VBProject.name, "exported", ai.name
                 exportWorkbook Workbooks(.Name)
             End Select
         End With
     Next i
     
     Debug.Print "COM Addins"
-''    Dim cm As office.COMAddIn
-''    For Each cm In Application.COMAddIns
     For i = 1 To Application.COMAddIns.Count
         With Application.COMAddIns(i)
         Debug.Print .GUID, .progID, .Description
@@ -86,171 +66,175 @@ Public Sub ExportAllVBAcode()
 End Sub
 
 Private Sub exportWorkbook(wb As Excel.Workbook)
-''    Dim proj As VBIDE.VBProject
-    Dim cm As VBIDE.VBComponent
-    Dim s As String
-    Dim ss As String
-    Dim N As Long
-    Dim i As Long
-    Dim o, oo   '// JScriptTypeInfo
-''    Dim sh As Worksheet
+    Dim XML As Object
+    Dim rt As Object
+    Dim nd As Object
     
-''    Debug.Print vbLf; "Type", "#lines", "Project_Module.ext"
-    
-    '[TODO] list wb structure json
-    '       workbook, name, VBProject, isAddin, codename, properties, etc..
-    '           export workbook component ifis
-    '       list sheets, charts, of VBProject type document (not module, class, or form)
-    '           export sheetXML ifis
-    '           export component ifis
-    '       list component ifis not vbp_document (already exported)
-    '           export component ifis
     With wb.VBProject
-        Set oo = JS.newObject("FileName", wb.Name)
-        Debug.Assert JS.addItem(oo, "ProjectName", .Name) > 0 'project name: VBProject or 'JScript'
-        Debug.Assert JS.addItem(oo, "isAddin", wb.IsAddin) > 0
-        If VBA.Len(.Description) > 0 Then Debug.Assert JS.addItem(oo, "ProjectDescription", .Description) > 0
-        If VBA.Len(wb.Author) > 0 Then Debug.Assert JS.addItem(oo, "Author", wb.Author) > 0
-        Debug.Assert JS.addItem(oo, "FilePath", wb.Path) > 0
-''        Debug.Assert JS.addItem(o, "ThisWorkBook", wb.CodeName) > 0  'ThisWorkbook
-        Set o = JS.newObject("meta", oo)
-        
+    
         '// Git subfolder name and check it:
         m.s = .Name
         If m.s = "VBAProject" Then                      '// use filename instead of generic VBAProject
             m.s = Replace(.BuildFileName, ".DLL", vbNullString)
-            m.s = Split(m.s, "\")(UBound(Split(m.s, "\")))
+            m.s = VBA.Mid(m.s, VBA.InStrRev(m.s, "\") + 1)
         End If
         m.fldr = m.gitfldr & m.s & "\"
         If VBA.Len(VBA.Dir(m.fldr, vbDirectory)) = 0 Then VBA.MkDir m.fldr
+        '// Git subfolder [End]
         
-        Dim fso As Object
-        Set fso = CreateObject("scripting.filesystemobject")
+        Set XML = XmlCreator.EmptyDocument()
+        Set rt = CreateXmlElement(XML, "ExcelFile", , Array("Name", wb.Name), XML)
+        If wb.IsAddin Then rt.setAttribute "IsAddin", "True"
+        Set nd = CreateXmlElement(XML, "Meta", , , rt)
+        Call CreateXmlElement(XML, "ProjectName", .Name, , nd)
+        Call CreateXmlElement(XML, "FileName", wb.Name, , nd)
+        Call CreateXmlElement(XML, "Path", wb.Path, , nd)
+        Call CreateXmlElement(XML, "IsAddin", wb.IsAddin, , nd)
+        Call CreateXmlElement(XML, "Author", wb.Author, , nd)
+        Call CreateXmlElement(XML, "Description", .Description, , nd)
+    End With
+    
+    AddSheets2Xml wb, XML, rt
+    
+    ExportVBProject wb.VBProject, XML, rt
+    
+    AddReferences2Xml wb.VBProject, XML, rt
+    
+    With CreateObject("scripting.filesystemobject")
+        .CreateTextFile(m.fldr & m.s & ".xml").Write PrettyPrintXML(XML.XML)
+    End With
+    
+    Debug.Print PrettyPrintXML(XML.XML)
 
-        Dim arr
-        Set oo = JS.newObject("CodeName", wb.CodeName)
-        Debug.Assert JS.addItem(oo, "TypeName", VBA.TypeName(wb)) > 0
-        Debug.Print JS.arrayPush(arr, oo) > 0
+End Sub
 
-        For i = 1 To wb.Sheets.Count
-            With wb.Sheets(i)
-                Set oo = JS.newObject("CodeName", .CodeName)
-                Debug.Assert JS.addItem(oo, "Name", .Name) > 0
-                Debug.Assert JS.addItem(oo, "TypeName", VBA.TypeName(wb.Sheets(i))) > 0
-                
-                Select Case True
-                Case .Type <> xlWorksheet
-                Case VBA.IsEmpty(.UsedRange)
-                    '// skip blank sheets
-                Case Else
-                    Debug.Assert JS.addItem(oo, "UsedRange", .UsedRange.AddressLocal) > 0
-                    fso.CreateTextFile(m.fldr & m.s & "_" & .CodeName & ".xml").Write .UsedRange.Value(xlRangeValueXMLSpreadsheet)
-                End Select
+Private Sub ExportVBProject(project As VBProject, doc As Object, parente As Object)
+    Dim rt As Object
+    Dim nd As Object
+    Dim i As Long
+    Dim s As String
+    
+    Set rt = CreateXmlElement(doc, "VBComponents", , , parente)
+    For i = 1 To project.VBComponents.Count
+        With project.VBComponents(i)
             
-                Debug.Assert JS.addItem(arr, i, oo) > 0
-            End With
-        Next i
-        Debug.Assert JS.addItem(o, "ThisWorkbook", arr) > 0
-        
-        
-        Set oo = JS.newObject(0)
-        For Each cm In .VBComponents
-            With cm
-''                Debug.Print cm.Name
-''                Debug.Print cm.CodeModule.CountOfLines
+            Set nd = CreateXmlElement(doc, .Name, , Array("Id", i), rt)
+            If .CodeModule.CountOfLines > 2 Then
                 
-                Select Case True
-                Case .CodeModule.CountOfLines < 3
-                    '// skip empty modules which only have 2 lines of 'Option Explicit'
-                Case .Type = vbext_ct_StdModule
-                    Debug.Print ".", .CodeModule.CountOfLines, s & "_" & .Name & ".bas"
+                Select Case .Type
+                Case vbext_ct_StdModule
                     .Export m.fldr & m.s & "_" & .Name & ".bas"
-                    Debug.Assert JS.addItem(oo, .Name & ".bas", .CodeModule.CountOfLines) > 0
-                Case .Type = vbext_ct_Document
-                    Debug.Print "wb/ws", .CodeModule.CountOfLines, s & "_" & .Name & ".vb"
+                    Call CreateXmlElement(doc, "CodeFile", .Name & ".bas", , nd)
+                    nd.setAttribute "Type", "StdModule"
+                Case vbext_ct_Document
                     .Export m.fldr & m.s & "_" & .Name & ".vb"
-                    Debug.Assert JS.addItem(oo, .Name & ".vb", .CodeModule.CountOfLines) > 0
-                Case .Type = vbext_ct_ClassModule
-                    Debug.Print "cls", .CodeModule.CountOfLines, s & "_" & .Name & ".cls"
+                    Call CreateXmlElement(doc, "CodeFile", .Name & ".vb", , nd)
+                    nd.setAttribute "Type", "Document"
+                Case vbext_ct_ClassModule
                     .Export m.fldr & m.s & "_" & .Name & ".cls"
-                    Debug.Assert JS.addItem(oo, .Name & ".cls", .CodeModule.CountOfLines) > 0
-                Case .Type = vbext_ct_MSForm
-                    Debug.Print "frm", .CodeModule.CountOfLines, s & "_" & .Name & ".frm"
+                    Call CreateXmlElement(doc, "CodeFile", .Name & ".cls", , nd)
+                    nd.setAttribute "Type", "ClassModule"
+                Case vbext_ct_MSForm
                     .Export m.fldr & m.s & "_" & .Name & ".frm"
-                    Debug.Assert JS.addItem(oo, .Name & ".frm", .CodeModule.CountOfLines) > 0
+                    Call CreateXmlElement(doc, "CodeFile", .Name & ".frm", , nd)
+                    nd.setAttribute "Type", "MSForm"
                 Case Else       '// .Type = vbext_ct_ActiveXDesigner
                     Debug.Assert False
                 End Select
                 
-            End With
-        Next cm
-        Debug.Assert JS.addItem(o, "CodeModule", oo) > 0
-        
-        Debug.Assert JS.addItem(o, "References", addReferences(wb.VBProject)) > 0
-        fso.CreateTextFile(m.fldr & m.s & ".json").Write JS.stringify(o, "", "  ")
-        Debug.Print JS.stringify(o, "", "  ")
-        
-    End With
-End Sub
-
-Public Function addReferences(pj As VBIDE.VBProject) As Variant
-    Dim i As Long
-    Dim o
-    Dim ret
-    
-    Set ret = JS.newObject(0)
-    For i = 1 To pj.References.Count
-        With pj.References(i)
-            Set o = JS.newObject(0)
-            If .IsBroken Then
-                MsgBox .Name & " has a broken reference to: " & .Name, vbCritical
-                Debug.Assert JS.addItem(o, "isBroken", .IsBroken) > 0
+                Call CreateXmlElement(doc, "CountOfDeclarationLines", .CodeModule.CountOfDeclarationLines, , nd)
+                Call CreateXmlElement(doc, "CountOfLines", .CodeModule.CountOfLines, , nd)
             End If
-            Debug.Assert JS.addItem(o, "Description", .Description) > 0
-            Debug.Assert JS.addItem(o, "Version", .Major & "." & .Minor) > 0
-            Debug.Assert JS.addItem(o, "BuiltIn", .BuiltIn) > 0
-            Debug.Assert JS.addItem(o, "GUID", .GUID) > 0
-            Debug.Assert JS.addItem(o, "FullPath", .FullPath) > 0
-            Debug.Assert .Type = vbext_rk_TypeLib
-            Debug.Assert JS.addItem(ret, .Name, o) > 0
         End With
     Next i
-    Set addReferences = ret
-End Function
 
-Public Function isSelectedAddins() As Boolean
+End Sub
+
+Private Sub AddSheets2Xml(wb As Workbook, doc As Object, parente As Object)
+    Dim fso As Object
     Dim i As Long
-    Dim N As Long
+    Dim nd As Object
+    Dim rt As Object
+    
+    Set rt = CreateXmlElement(doc, "Sheets", , , parente)
+    Set fso = CreateObject("scripting.filesystemobject")
+
+    For i = 1 To wb.Sheets.Count
+        With wb.Sheets(i)
+            Set nd = CreateXmlElement(doc, .CodeName, , Array("Id", i, "Type", VBA.TypeName(wb.Sheets(i))), rt)
+            If .CodeName <> .Name Then Call CreateXmlElement(doc, "Name", .Name, , nd)
+       
+            Select Case True
+            Case .Type <> xlWorksheet       '// skip charts
+            Case VBA.IsEmpty(.UsedRange)    '// skip blank sheets
+            Case Else
+                Call CreateXmlElement(doc, "UsedRange", .UsedRange.AddressLocal, , nd)
+                Call CreateXmlElement(doc, "XmlFilename", m.s & "_" & .CodeName & ".xml", , nd)
+                fso.CreateTextFile(m.fldr & m.s & "_" & .CodeName & ".xml").Write .UsedRange.Value(xlRangeValueXMLSpreadsheet)
+            End Select
+        End With
+    Next i
+
+    Set fso = Nothing
+    End Sub
+    
+Private Sub AddReferences2Xml(pj As VBIDE.VBProject, doc As Object, parente As Object)
+    Dim i As Long
+    Dim nd As Object
+    Dim ret As Object
+    
+    Set ret = XmlCreator.CreateXmlElement(doc, "References", , , parente)
+    
+    For i = 1 To pj.References.Count
+        With pj.References(i)
+            Set nd = CreateXmlElement(doc, .Name, , , ret)
+            Call CreateXmlElement(doc, "Description", .Description, , nd)
+            Call CreateXmlElement(doc, "Version", .Major & "." & .Minor, , nd)
+            Call CreateXmlElement(doc, "BuiltIn", .BuiltIn, , nd)
+            Call CreateXmlElement(doc, "GUID", .GUID, , nd)
+            Call CreateXmlElement(doc, "FullPath", .FullPath, , nd)
+            If .IsBroken Then
+                MsgBox .Name & " has a broken reference to: " & .Name, vbCritical
+                Call CreateXmlElement(doc, "isBroken", .IsBroken, , nd)
+            End If
+        End With
+    Next i
+End Sub
+
+Private Function isSelectedAddins() As Boolean  '// did user change installed Addins?
+    Dim i As Long
+    Dim n As Long
     
     For i = 1 To Excel.AddIns.Count
-        If AddIns(i).Installed Then N = N + i
+        If AddIns(i).Installed Then n = n + i
     Next i
+    
     Debug.Print "Select Addins to Export Code"
     Application.Dialogs(xlDialogAddinManager).Show  '// .Dialogs(321).Show
-    '// check to see if Addins were selected/deselected
-    For i = 1 To Excel.AddIns.Count
-        If AddIns(i).Installed Then N = N - i
+    
+    For i = 1 To Excel.AddIns.Count '// check to see if Addins were selected/deselected
+        If AddIns(i).Installed Then n = n - i
     Next i
-    isSelectedAddins = (N <> 0)
+    isSelectedAddins = (n <> 0)
+    
 End Function
 
-
-Public Function isVBEPermissionsOn() As Boolean
-        Debug.Print "Enable Trust Access to the VBE Project model"
-        On Error Resume Next
-            If Not Application.VBE.VBProjects.Count > 0 Then
-                Application.CommandBars.ExecuteMso "MacroSecurity"  '// turn off macroSecurity
-            '// Application.CommandBars.FindControl(ID:=3627).Execute  '//same thing
-            Else
-                Debug.Print "... already trusted"
-            End If
-        isVBEPermissionsOn = IsNumeric(Application.VBE.VBProjects.Count)
+Private Function isVBEPermissionsOn() As Boolean
+    On Error Resume Next
+        If Not Application.VBE.VBProjects.Count > 0 Then
+            Debug.Print "Enable Trust Access to the VBE Project model"
+            Application.CommandBars.ExecuteMso "MacroSecurity"  '// turn off macroSecurity
+        '// Application.CommandBars.FindControl(ID:=3627).Execute  '//same thing
+        Else
+            Debug.Print "... already Trust Access to the VBE Project model"
+        End If
+    isVBEPermissionsOn = IsNumeric(Application.VBE.VBProjects.Count)
 End Function
 
-Public Function isVBEPermissionsOff() As Boolean
+Private Function isVBEPermissionsOff() As Boolean
     Debug.Print "Disable Trust Access to the VBA Project model for safety"
     Application.CommandBars.ExecuteMso "MacroSecurity"
     On Error Resume Next
     Debug.Assert IsNumeric(Application.VBE.VBProjects.Count)
-    isVBEPermissionsOff = IIf(Err.Number = 1004, True, False)
+    isVBEPermissionsOff = (Err.Number = 1004)
 End Function
